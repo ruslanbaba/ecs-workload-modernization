@@ -228,14 +228,3 @@ cd ../../cicd
 - Health check monitoring
 - Failover mechanisms
 
-## Contributing
-
-Please refer to our [Contributing Guidelines](docs/CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests.
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Support
-
-For support and questions, please contact the Platform Engineering team at platform-engineering@company.com or create an issue in this repository.
