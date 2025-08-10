@@ -88,7 +88,16 @@ This repository contains the **complete modernization of 10 enterprise-level leg
 │   ├── CI_CD_SIMPLIFICATION.md    # Architecture decisions
 │   └── DEPLOYMENT_GUIDE.md        # Step-by-step implementation
 └── OCTOPUS_REMOVAL_COMPLETE.md    # ✅ Architectural simplification summary
+└── OCTOPUS_CLEANUP_COMPLETE.md    # ✅ Final cleanup documentation
 ```
+
+### ⚠️ **Deprecated Components (Scheduled for Removal)**
+```
+cicd/
+├── lambda/octopus-deploy/         # ❌ DEPRECATED - Octopus integration removed
+└── octopus-deploy/                # ❌ DEPRECATED - Configuration files removed
+```
+**Note**: These directories contain deprecated files marked for removal in the next cleanup cycle. All functionality has been migrated to direct CodePipeline → ECS deployment.
 
 ## 🛠️ Technology Stack (Implemented)
 

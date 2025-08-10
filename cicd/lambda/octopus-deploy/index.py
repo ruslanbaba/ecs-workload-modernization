@@ -1,60 +1,24 @@
-import json
-import boto3
-import requests
-import os
-import logging
-from typing import Dict, Any
-
-# Configure logging
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
-
-# Initialize AWS clients
-ssm_client = boto3.client('ssm')
-secrets_client = boto3.client('secretsmanager')
-
-def get_parameter(parameter_name: str, encrypted: bool = False) -> str:
-    """Retrieve parameter from AWS Systems Manager Parameter Store"""
-    try:
-        response = ssm_client.get_parameter(
-            Name=parameter_name,
-            WithDecryption=encrypted
-        )
-        return response['Parameter']['Value']
-    except Exception as e:
-        logger.error(f"Error retrieving parameter {parameter_name}: {str(e)}")
-        raise
-
-def get_secret(secret_name: str) -> str:
-    """Retrieve secret from AWS Secrets Manager"""
-    try:
-        response = secrets_client.get_secret_value(SecretId=secret_name)
-        return response['SecretString']
-    except Exception as e:
-        logger.error(f"Error retrieving secret {secret_name}: {str(e)}")
-        raise
-
-def create_octopus_release(
-    server_url: str,
-    api_key: str,
-    space_name: str,
-    project_name: str,
-    version: str,
-    image_uri: str
-) -> Dict[str, Any]:
-    """Create a release in Octopus Deploy"""
-    
-    headers = {
-        'X-Octopus-ApiKey': api_key,
-        'Content-Type': 'application/json'
-    }
-    
-    # Get space ID
-    spaces_url = f"{server_url}/api/spaces"
-    spaces_response = requests.get(spaces_url, headers=headers)
-    spaces_response.raise_for_status()
-    
-    space_id = None
+# DEPRECATED: This file has been removed as part of Octopus Deploy elimination
+# 
+# As of August 2025, all Octopus Deploy functionality has been replaced 
+# with direct CodePipeline to ECS deployment for simplified CI/CD architecture.
+#
+# Previous functionality:
+# - Octopus Deploy release creation
+# - Environment-specific deployments
+# - Application variable management
+#
+# Current replacement:
+# - Direct CodePipeline to ECS deployment via buildspec files
+# - AWS Parameter Store and Secrets Manager for configuration
+# - ECS service updates through AWS CodeDeploy
+#
+# For migration details, see:
+# - docs/CI_CD_SIMPLIFICATION.md
+# - docs/OCTOPUS_REMOVAL_COMPLETE.md
+# - cicd/buildspec/ directory for current deployment scripts
+#
+# This directory should be removed in the next cleanup cycle.
     for space in spaces_response.json()['Items']:
         if space['Name'] == space_name:
             space_id = space['Id']
