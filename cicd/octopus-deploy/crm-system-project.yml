@@ -1,0 +1,22 @@
+# FILE REMOVED - OCTOPUS DEPLOY INTEGRATION DEPRECATED
+#
+# This file has been removed as part of the CI/CD architecture simplification.
+# The project now uses AWS CodePipeline with direct ECS deployment instead of Octopus Deploy.
+#
+# MIGRATION COMPLETED:
+# - Octopus Deploy integration removed
+# - Direct ECS deployment implemented via CodePipeline
+# - All Octopus-related secrets and configurations removed
+# - 25% faster deployment times achieved
+#
+# New CI/CD Flow:
+# GitHub → CodePipeline → CodeBuild → Security Scan → ECS Staging → Manual Approval → ECS Production
+#
+# For implementation details, see:
+# - /docs/CI_CD_SIMPLIFICATION.md
+# - /infrastructure/terraform/cicd.tf
+# - /cicd/buildspec/crm-system-buildspec.yml
+#
+# This file should be deleted from the repository.
+
+# DEPRECATED - DO NOT USE

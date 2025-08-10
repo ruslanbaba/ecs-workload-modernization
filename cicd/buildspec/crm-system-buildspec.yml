@@ -1,0 +1,135 @@
+# CI/CD Pipeline Configuration for CRM System
+# This pipeline demonstrates the enterprise-level automation for legacy application modernization
+
+version: 0.2
+
+env:
+  variables:
+    AWS_DEFAULT_REGION: "us-east-1"
+    IMAGE_REPO_NAME: "ecs-modernization/crm-system"
+    IMAGE_TAG: "latest"
+  parameter-store:
+    AWS_ACCOUNT_ID: "/ecs-modernization/aws-account-id"
+    GITHUB_TOKEN: "/ecs-modernization/github-token"
+  secrets-manager:
+    DOCKER_REGISTRY_PASSWORD: "ecs-modernization/docker-registry:password"
+    SONAR_TOKEN: "ecs-modernization/sonarqube:token"
+    
+phases:
+  pre_build:
+    commands:
+      - echo Logging in to Amazon ECR...
+      - aws --version
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+      - REPOSITORY_URI=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME
+      - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
+      - IMAGE_TAG=${COMMIT_HASH:=latest}
+      
+  build:
+    commands:
+      - echo Build started on `date`
+      - echo Building the Docker image...
+      
+      # Security scanning before build
+      - echo "Running security scans..."
+      - npm audit --audit-level high --json > npm-audit.json || echo "NPM audit completed with findings"
+      
+      # SonarQube code quality analysis
+      - echo "Running SonarQube analysis..."
+      - sonar-scanner -Dsonar.projectKey=crm-system -Dsonar.host.url=https://sonar.company.com -Dsonar.login=$SONAR_TOKEN
+      
+      # Container security scanning with Trivy
+      - echo "Installing Trivy for container scanning..."
+      - wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | apt-key add -
+      - echo deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main | tee -a /etc/apt/sources.list.d/trivy.list
+      - apt-get update && apt-get install -y trivy
+      
+      # Multi-stage Docker build for optimization
+      - docker build -t $IMAGE_REPO_NAME:$IMAGE_TAG -f applications/crm-system/Dockerfile applications/crm-system/
+      - docker tag $IMAGE_REPO_NAME:$IMAGE_TAG $REPOSITORY_URI:$IMAGE_TAG
+      - docker tag $IMAGE_REPO_NAME:$IMAGE_TAG $REPOSITORY_URI:latest
+      
+      # Container security scanning
+      - echo "Running Trivy security scan..."
+      - trivy image --exit-code 0 --severity HIGH,CRITICAL --format json --output trivy-report.json $REPOSITORY_URI:$IMAGE_TAG
+      
+      # Run application tests
+      - echo "Running unit tests..."
+      - docker run --rm -e NODE_ENV=test $IMAGE_REPO_NAME:$IMAGE_TAG npm test
+      
+      # Performance benchmarking
+      - echo "Running performance tests..."
+      - docker run --rm -e NODE_ENV=test $IMAGE_REPO_NAME:$IMAGE_TAG npm run test:performance
+      
+  post_build:
+    commands:
+      - echo Build completed on `date`
+      - echo Pushing the Docker images...
+      - docker push $REPOSITORY_URI:latest
+      - docker push $REPOSITORY_URI:$IMAGE_TAG
+      
+      # Prepare deployment artifacts
+      - echo "Preparing deployment artifacts..."
+      - apt-get update && apt-get install -y jq curl
+      
+      # Create deployment package with metadata
+      - echo "Creating deployment metadata..."
+      - |
+        cat > deployment-metadata.json << EOF
+        {
+          "imageUri": "$REPOSITORY_URI:$IMAGE_TAG",
+          "commitHash": "$COMMIT_HASH",
+          "buildNumber": "$CODEBUILD_BUILD_NUMBER",
+          "buildTime": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+          "gitBranch": "$CODEBUILD_SOURCE_VERSION",
+          "applicationName": "crm-system",
+          "environment": "staging"
+        }
+        EOF
+      
+      # Create imagedefinitions.json for ECS deployment
+      - echo "Creating imagedefinitions.json for ECS deployment..."
+      - |
+        cat > imagedefinitions.json << EOF
+        [
+          {
+            "name": "crm-system",
+            "imageUri": "$REPOSITORY_URI:$IMAGE_TAG"
+          }
+        ]
+        EOF
+      
+      # Run post-build health checks
+      - echo "Running post-build health checks..."
+      - curl -f http://localhost:8080/health || echo "Health check skipped - service not running locally"
+      
+      # Update deployment metrics
+      - echo "Recording build metrics..."
+      - aws cloudwatch put-metric-data --namespace "ECS/Builds" --metric-data MetricName=BuildSuccess,Value=1,Unit=Count,Dimensions=Application=crm-system
+      
+artifacts:
+  files:
+    - imagedefinitions.json
+    - deployment-metadata.json
+  name: crm-system-$(date +%Y-%m-%d-%H-%M-%S)
+  
+reports:
+  test-reports:
+    files:
+      - 'test-results.xml'
+    file-format: 'JUNITXML'
+  security-reports:
+    files:
+      - 'npm-audit.json'
+      - 'trivy-report.json'
+      - 'sonarqube-report.json'
+    file-format: 'JSON'
+  performance-reports:
+    files:
+      - 'performance-results.json'
+    file-format: 'JSON'
+
+cache:
+  paths:
+    - '/root/.npm/**/*'
+    - 'node_modules/**/*'
